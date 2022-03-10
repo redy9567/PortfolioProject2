@@ -6,50 +6,42 @@ using UnityEditor;
 public class GreyboxTool : EditorWindow
 {
 
-    enum Direction
-    {
-        Up,
-        Down,
-        Left,
-        Right,
-        Forward,
-        Backwards,
-        DIRECTION_MAX
-    }
-
     Vector3 halfScale = new Vector3(0.5f, 0.5f, 0.5f);
 
-    public Vector3 cubeScale;
-    public Vector3 handleOutput;
+    public float posXVal;
+    public float negXVal;
+    public float posYVal;
+    public float negYVal;
+    public float posZVal;
+    public float negZVal;
 
     SerializedObject serializedObject;
-    SerializedProperty cubeScaleProperty;
-    SerializedProperty handleOutputProperty;
     
     [MenuItem("My Tools/Greybox Creation")]
     public static void ShowWindow() => GetWindow(typeof(GreyboxTool));
 
     private GameObject folder;
-    private List<GameObject> extensionHandles;
 
 
     private void OnEnable()
     {
-        extensionHandles = new List<GameObject>();
 
         SceneView.duringSceneGui += DuringSceneGUI;
 
         folder = new GameObject();
         folder.name = "GreyBox Tool";
 
-        cubeScale = Vector3.one;
-
-        GameObject greyboxBase = CreateGreyCube(Vector3.zero);
+        GameObject greyboxBase = CreateGreyCube(Vector3.zero, Vector3.one);
         greyboxBase.transform.parent = folder.transform;
 
         serializedObject = new SerializedObject(this);
-        cubeScaleProperty = serializedObject.FindProperty("cubeScale");
-        handleOutputProperty = serializedObject.FindProperty("handleOutput");
+
+        posXVal = 0.0f;
+        negXVal = 0.0f;
+        posYVal = 0.0f;
+        negYVal = 0.0f;
+        posZVal = 0.0f;
+        negZVal = 0.0f;
 
     }
 
@@ -65,8 +57,6 @@ public class GreyboxTool : EditorWindow
     public void OnGUI()
     {
         serializedObject.Update();
-        EditorGUILayout.PropertyField(cubeScaleProperty);
-        EditorGUILayout.PropertyField(handleOutputProperty);
         serializedObject.ApplyModifiedProperties();
 
         if(GUILayout.Button("Finalize"))
@@ -77,126 +67,158 @@ public class GreyboxTool : EditorWindow
 
     void DuringSceneGUI(SceneView sceneView)
     {
-        //UpdateHandles(sceneView);
+
+        if (Selection.gameObjects.Length == 1 &&
+            Selection.gameObjects[0].transform.parent != null &&
+            Selection.gameObjects[0].transform.parent.gameObject == folder)
+        {
+
+            GameObject selectedObject = Selection.gameObjects[0];
+            Transform parentTransform = selectedObject.transform;
+
+            if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
+            {
+                if (posXVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(posXVal, selectedObject.transform.localScale.y, selectedObject.transform.localScale.z);
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3((parentTransform.localScale.x / 2.0f + newCubeScale.x / 2.0f), 0.0f, 0.0f), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    posXVal = 0.0f;
+                }
+
+                if (negXVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(-negXVal, selectedObject.transform.localScale.y, selectedObject.transform.localScale.z); //Invert negYVal for Positive Scale
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3(-(parentTransform.localScale.x / 2.0f + newCubeScale.x / 2.0f), 0.0f, 0.0f), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    negXVal = 0.0f;
+                }
+
+                if (posYVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(selectedObject.transform.localScale.x, posYVal, selectedObject.transform.localScale.z);
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3(0.0f, (parentTransform.localScale.y / 2.0f + newCubeScale.y / 2.0f), 0.0f), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    posYVal = 0.0f;
+                }
+
+                if (negYVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(selectedObject.transform.localScale.x, -negYVal, selectedObject.transform.localScale.z); //Invert negYVal for Positive Scale
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3(0.0f, -(parentTransform.localScale.y / 2.0f + newCubeScale.y / 2.0f), 0.0f), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    negYVal = 0.0f;
+                }
+
+                if (posZVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(selectedObject.transform.localScale.x, selectedObject.transform.localScale.y, posZVal);
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3(0.0f, 0.0f, (parentTransform.localScale.z / 2.0f + newCubeScale.z / 2.0f)), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    posZVal = 0.0f;
+                }
+
+                if (negZVal != 0.0f)
+                {
+                    Vector3 newCubeScale = new Vector3(selectedObject.transform.localScale.x, selectedObject.transform.localScale.y, -negZVal); //Invert negZVal for Positive Scale
+                    GameObject obj = CreateGreyCube(selectedObject.transform.position + new Vector3(0.0f, 0.0f, -(parentTransform.localScale.z / 2.0f + newCubeScale.z / 2.0f)), newCubeScale);
+                    Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
+                    negZVal = 0.0f;
+                }
+
+                Selection.activeGameObject = null;
+            }
+
+            Handles.color = Color.yellow;
+
+            Vector3 PosXSliderLoc = new Vector3(posXVal + (selectedObject.transform.localScale.x / 2.0f + selectedObject.transform.position.x), selectedObject.transform.position.y, selectedObject.transform.position.z);
+            Vector3 NegXSliderLoc = new Vector3(negXVal - (selectedObject.transform.localScale.x / 2.0f - selectedObject.transform.position.x), selectedObject.transform.position.y, selectedObject.transform.position.z);
+            Vector3 PosYSliderLoc = new Vector3(selectedObject.transform.position.x, posYVal + (selectedObject.transform.localScale.y / 2.0f + selectedObject.transform.position.y), selectedObject.transform.position.z);
+            Vector3 NegYSliderLoc = new Vector3(selectedObject.transform.position.x, negYVal - (selectedObject.transform.localScale.y / 2.0f - selectedObject.transform.position.y), selectedObject.transform.position.z);
+            Vector3 PosZSliderLoc = new Vector3(selectedObject.transform.position.x, selectedObject.transform.position.y, posZVal + (selectedObject.transform.localScale.z/2.0f + selectedObject.transform.position.z)); 
+            Vector3 NegZSliderLoc = new Vector3(selectedObject.transform.position.x, selectedObject.transform.position.y, negZVal - (selectedObject.transform.localScale.z/2.0f - selectedObject.transform.position.z));
+
+            posXVal = Handles.Slider(PosXSliderLoc, Vector3.right).x - (selectedObject.transform.localScale.x / 2.0f + selectedObject.transform.position.x);
+            negXVal = Handles.Slider(NegXSliderLoc, Vector3.left).x + (selectedObject.transform.localScale.x / 2.0f - selectedObject.transform.position.x);
+            posYVal = Handles.Slider(PosYSliderLoc, Vector3.up).y - (selectedObject.transform.localScale.y / 2.0f + selectedObject.transform.position.y);
+            negYVal = Handles.Slider(NegYSliderLoc, Vector3.down).y + (selectedObject.transform.localScale.y / 2.0f - selectedObject.transform.position.y);
+            posZVal = Handles.Slider(PosZSliderLoc, Vector3.forward).z - (selectedObject.transform.localScale.z/2.0f + selectedObject.transform.position.z); 
+            negZVal = Handles.Slider(NegZSliderLoc, Vector3.back).z + (selectedObject.transform.localScale.z/2.0f - selectedObject.transform.position.z);
+
+            if (posXVal < 0.0f)
+                posXVal = 0.0f;
+
+            if (negXVal > 0.0f)
+                posXVal = 0.0f;
+
+            if (posYVal < 0.0f)
+                posYVal = 0.0f;
+
+            if (negYVal > 0.0f)
+                posYVal = 0.0f;
+
+            if (posZVal < 0.0f)
+                posZVal = 0.0f;
+
+            if (negZVal > 0.0f)
+                posZVal = 0.0f;
+
+
+            if (posXVal != 0.0f)
+            {
+                Vector3 PosXCubeSize = new Vector3(posXVal, selectedObject.transform.localScale.y, selectedObject.transform.localScale.z);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3((selectedObject.transform.localScale.x / 2.0f + posXVal / 2.0f), 0.0f, 0.0f), PosXCubeSize);
+            }
+            if (negXVal != 0.0f)
+            {
+                Vector3 NegXCubeSize = new Vector3(-negXVal, selectedObject.transform.localScale.y, selectedObject.transform.localScale.z);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3(-(selectedObject.transform.localScale.x / 2.0f - negXVal / 2.0f), 0.0f, 0.0f), NegXCubeSize);
+            }
+            if (posYVal != 0.0f)
+            {
+                Vector3 PosYCubeSize = new Vector3(selectedObject.transform.localScale.x, posYVal, selectedObject.transform.localScale.z);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3(0.0f, (selectedObject.transform.localScale.y / 2.0f + posYVal / 2.0f), 0.0f), PosYCubeSize);
+            }
+            if (negYVal != 0.0f)
+            {
+                Vector3 NegYCubeSize = new Vector3(selectedObject.transform.localScale.x, -negYVal, selectedObject.transform.localScale.z);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3(0.0f, -(selectedObject.transform.localScale.y / 2.0f - negYVal / 2.0f), 0.0f), NegYCubeSize);
+            }
+            if (posZVal != 0.0f)
+            {
+                Vector3 PosZCubeSize = new Vector3(selectedObject.transform.localScale.x, selectedObject.transform.localScale.y, posZVal);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3(0.0f, 0.0f, (selectedObject.transform.localScale.z / 2.0f + posZVal / 2.0f)), PosZCubeSize);
+            }
+            if (negZVal != 0.0f)
+            {
+                Vector3 NegZCubeSize = new Vector3(selectedObject.transform.localScale.x, selectedObject.transform.localScale.y, -negZVal);
+                Handles.DrawWireCube(selectedObject.transform.position + new Vector3(0.0f, 0.0f, -(selectedObject.transform.localScale.z / 2.0f - negZVal / 2.0f)), NegZCubeSize);
+            }
+        }
+
+        
 
         if ((Event.current.modifiers & EventModifiers.Control) > 0)
         {
             return;
         }
 
-        if (Selection.gameObjects.Length == 1 &&
-            Selection.gameObjects[0].transform.parent != null &&
-            Selection.gameObjects[0].transform.parent.parent != null &&
-            Selection.gameObjects[0].transform.parent.parent.gameObject == folder)
-        {
-            string handleName = Selection.gameObjects[0].name;
-            Transform parentTransform = Selection.gameObjects[0].transform.parent;
-            GameObject obj = null;
-            switch (handleName)
-            {
-                case "Up":
-                    obj = CreateGreyCube(parentTransform.position + new Vector3(0.0f, (parentTransform.localScale.y / 2.0f + cubeScale.y / 2.0f), 0.0f));
-                    break;
-                case "Down":
-                    obj = CreateGreyCube(Selection.gameObjects[0].transform.parent.position + new Vector3(0.0f, -(parentTransform.localScale.y / 2.0f + cubeScale.y / 2.0f), 0.0f));
-                    break;
-                case "Left":
-                    obj = CreateGreyCube(Selection.gameObjects[0].transform.parent.position + new Vector3(-(parentTransform.localScale.x / 2.0f + cubeScale.x / 2.0f), 0.0f, 0.0f));
-                    break;
-                case "Right":
-                    obj = CreateGreyCube(Selection.gameObjects[0].transform.parent.position + new Vector3((parentTransform.localScale.x / 2.0f + cubeScale.x / 2.0f), 0.0f, 0.0f));
-                    break;
-                case "Forward":
-                    obj = CreateGreyCube(Selection.gameObjects[0].transform.parent.position + new Vector3(0.0f, 0.0f, (parentTransform.localScale.z / 2.0f + cubeScale.z / 2.0f)));
-                    break;
-                case "Backwards":
-                    obj = CreateGreyCube(Selection.gameObjects[0].transform.parent.position + new Vector3(0.0f, 0.0f, -(parentTransform.localScale.z / 2.0f + cubeScale.z / 2.0f)));
-                    break;
-
-            }
-
-            if(obj)
-                Undo.RegisterCreatedObjectUndo(obj, "Expand Greybox");
-
-            Selection.activeGameObject = null;
-        }
-
-        Vector3 output = Handles.Slider(folder.transform.position, Vector3.forward);
-
-        if (output != Vector3.zero)
-            handleOutput = output;
-
-        if(handleOutput != Vector3.zero)
-        {
-            Handles.DrawWireCube(folder.transform.position + (folder.transform.localScale / 2.0f + handleOutput / 2.0f), handleOutput);
-        }
-
+        
     }
 
-    GameObject CreateGreyCube(Vector3 loc)
+    GameObject CreateGreyCube(Vector3 loc, Vector3 scale)
     {
         GameObject folder = GameObject.Find("GreyBox Tool");
-        if(folder == null)
+        if (folder == null)
         {
             folder = new GameObject();
             folder.name = "GreyBox Tool";
         }
 
         GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        obj.transform.localScale = cubeScale;
+        obj.transform.localScale = scale;
         obj.transform.position = loc;
         obj.transform.parent = folder.transform;
-
-        Material yellow = new Material(obj.GetComponent<MeshRenderer>().sharedMaterial);
-        yellow.SetColor(Shader.PropertyToID("_Color"), new Color(0.75f, 0.75f, 0.0f));
-
-        GameObject upHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        upHandle.transform.parent = obj.transform;
-        upHandle.transform.localScale = halfScale;
-        upHandle.transform.localPosition = new Vector3(0.0f, 0.5f, 0.0f);
-        upHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        upHandle.name = "Up";
-        extensionHandles.Add(upHandle);
-
-        GameObject downHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        downHandle.transform.parent = obj.transform;
-        downHandle.transform.localScale = halfScale;
-        downHandle.transform.localPosition = new Vector3(0.0f, -0.5f, 0.0f);
-        downHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        downHandle.name = "Down";
-        extensionHandles.Add(downHandle);
-
-        GameObject leftHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        leftHandle.transform.parent = obj.transform;
-        leftHandle.transform.localScale = halfScale;
-        leftHandle.transform.localPosition = new Vector3(-0.5f, 0.0f, 0.0f);
-        leftHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        leftHandle.name = "Left";
-        extensionHandles.Add(leftHandle);
-
-        GameObject rightHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        rightHandle.transform.parent = obj.transform;
-        rightHandle.transform.localScale = halfScale;
-        rightHandle.transform.localPosition = new Vector3(0.5f, 0.0f, 0.0f);
-        rightHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        rightHandle.name = "Right";
-        extensionHandles.Add(rightHandle);
-
-        GameObject forwardHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        forwardHandle.transform.parent = obj.transform;
-        forwardHandle.transform.localScale = halfScale;
-        forwardHandle.transform.localPosition = new Vector3(0.0f, 0.0f, 0.5f);
-        forwardHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        forwardHandle.name = "Forward";
-        extensionHandles.Add(forwardHandle);
-
-        GameObject backwardsHandle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        backwardsHandle.transform.parent = obj.transform;
-        backwardsHandle.transform.localScale = halfScale;
-        backwardsHandle.transform.localPosition = new Vector3(0.0f, 0.0f, -0.5f);
-        backwardsHandle.GetComponent<MeshRenderer>().sharedMaterial = yellow;
-        backwardsHandle.name = "Backwards";
-        extensionHandles.Add(backwardsHandle);
 
         return obj;
     }
